@@ -6,7 +6,7 @@ import numpy as np
 from PIL import Image
 import h5py
 import random
-from jsonHandler.jsonHandler import JsonHandler
+from ai_dataloader.jsonHandler.jsonHandler import JsonHandler
 
 class SVHN(object):
     """
