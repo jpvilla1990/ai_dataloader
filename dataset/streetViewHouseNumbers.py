@@ -185,10 +185,10 @@ class SVHN(object):
                 })
                 index += 1
 
-                JsonHandler.saveJson(
-                    os.path.join(path, self.__folderStructure[key]["jsonGroundTruth"]),
-                    jsonContent,
-                )
+            JsonHandler.saveJson(
+                os.path.join(path, self.__folderStructure[key]["jsonGroundTruth"]),
+                jsonContent,
+            )
 
     def __indexImages(self, path):
         """
@@ -222,9 +222,9 @@ class SVHN(object):
                 raise Exception("No " + key + " images in the path : " + pathImages)
 
             JsonHandler.saveJson(
-                    os.path.join(path, self.__folderStructure[key]["jsonImagesIndex"]),
-                    imagesDirectory,
-                )
+                os.path.join(path, self.__folderStructure[key]["jsonImagesIndex"]),
+                imagesDirectory,
+            )
 
     def __normalizationParameters(self, path):
         """
