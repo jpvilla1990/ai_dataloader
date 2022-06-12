@@ -5,6 +5,7 @@ import requests
 import numpy as np
 from PIL import Image
 import h5py
+import random
 from jsonHandler.jsonHandler import JsonHandler
 
 class SVHN(object):
@@ -12,7 +13,11 @@ class SVHN(object):
     Class to manage Stree View House Numbers dataset
     http://ufldl.stanford.edu/housenumbers/
     """
-    def __init__(self):
+    def __init__(self, pathData):
+        """
+        pathData : String path where the dataset will be downloaded
+        """
+        self.__pathData = pathData
         self.__nonCropDatasetUrl = {
             "train" : "http://ufldl.stanford.edu/housenumbers/train.tar.gz",
             "test" : "http://ufldl.stanford.edu/housenumbers/test.tar.gz",
@@ -32,6 +37,7 @@ class SVHN(object):
 
         groundTruthFile = "digitStruct.mat"
         groundTruthJsonFile = "groundTruth.json"
+        jsonImagesIndex = "jsonImagesIndex.json"
         normalizationParametersFile = "normalizationParameters.json"
         trainFolder = os.path.join("train", "train")
         testFolder = os.path.join("test", "test")
@@ -45,14 +51,14 @@ class SVHN(object):
                 "folder" : trainFolder,
                 "groundTruthFile" : os.path.join(trainFolder, groundTruthFile),
                 "jsonGroundTruth" : os.path.join(groundTruthTrainFolder, groundTruthJsonFile),
-                "jsonImagesIndex" : os.path.join(imagesDirectoryTrainFolder, groundTruthJsonFile),
+                "jsonImagesIndex" : os.path.join(imagesDirectoryTrainFolder, jsonImagesIndex),
                 "jsonNormalizationParameters" : os.path.join(imagesDirectoryTrainFolder, normalizationParametersFile),
             },
             "test" : {
                 "folder" : testFolder,
                 "groundTruthFile" : os.path.join(testFolder, groundTruthFile),
                 "jsonGroundTruth" : os.path.join(groundTruthTestFolder, groundTruthJsonFile),
-                "jsonImagesIndex" : os.path.join(imagesDirectoryTestFolder, groundTruthJsonFile),
+                "jsonImagesIndex" : os.path.join(imagesDirectoryTestFolder, jsonImagesIndex),
             },
         }
         self.__matKeys = {
@@ -65,6 +71,16 @@ class SVHN(object):
                 "top" : "top",
                 "label" : "label",
             }
+        }
+
+        self.__randomList = {
+            "train" : list(),
+            "test" : list(),
+        }
+
+        self.__randomListIndex = {
+            "train" : 0,
+            "test" : 0,
         }
 
     def __checkH5pyDatasetType(self, value, matFile):
@@ -257,31 +273,32 @@ class SVHN(object):
             normalizationParameters,
         )
 
-    def downloadDataset(self, path, crop=False):
+    def downloadDataset(self, crop=False):
         """
         Method to download dataset in a specific path and extract it
 
-        path : String path where the dataset will be downloaded
         crop : boolean if the cropped dataset is desired
         """
-        for key in list(self.__targetFile.keys()):
-            targetFile = os.path.join(path, self.__targetFile[key])
-            targetPath = os.path.join(path, key)
+        if os.path.exists(self.__pathData) is False:
+            os.makedirs(self.__pathData)
+            for key in list(self.__targetFile.keys()):
+                targetFile = os.path.join(self.__pathData, self.__targetFile[key])
+                targetPath = os.path.join(self.__pathData, key)
 
-            if crop:
-                response = requests.get( self.__cropDatasetUrl[key])
-            else:
-                response = requests.get( self.__nonCropDatasetUrl[key])
+                if crop:
+                    response = requests.get( self.__cropDatasetUrl[key])
+                else:
+                    response = requests.get( self.__nonCropDatasetUrl[key])
 
-            open(targetFile, "wb").write(response.content)
+                open(targetFile, "wb").write(response.content)
 
-            tarFile = tarfile.open(targetFile)
-            tarFile.extractall(targetPath)
-            tarFile.close()
+                tarFile = tarfile.open(targetFile)
+                tarFile.extractall(targetPath)
+                tarFile.close()
 
-            os.remove(tarFile)
+                os.remove(targetFile)
 
-    def prepareData(self, pathData):
+    def prepareData(self):
         """
         Method to prepare the dataset for training
         """
@@ -289,16 +306,76 @@ class SVHN(object):
         indexImages = False
         normalizationParameters = False
         for key in list(self.__targetFile.keys()):
-            if os.path.exists(os.path.join(pathData, self.__folderStructure[key]["jsonGroundTruth"])) is False:
+            if os.path.exists(os.path.join(self.__pathData, self.__folderStructure[key]["jsonGroundTruth"])) is False:
                 unPack = True
-            if os.path.exists(os.path.join(pathData, self.__folderStructure[key]["jsonImagesIndex"])) is False:
+            if os.path.exists(os.path.join(self.__pathData, self.__folderStructure[key]["jsonImagesIndex"])) is False:
                 indexImages = True
-        if os.path.exists(os.path.join(pathData, self.__folderStructure["train"]["jsonNormalizationParameters"])) is False:
+        if os.path.exists(os.path.join(self.__pathData, self.__folderStructure["train"]["jsonNormalizationParameters"])) is False:
             normalizationParameters = True
         if unPack:
-            self.__unpackGroundTruth(pathData)
+            self.__unpackGroundTruth(self.__pathData)
         if indexImages:
-            self.__indexImages(pathData)
+            self.__indexImages(self.__pathData)
         if  normalizationParameters:
-            self.__normalizationParameters(pathData)
+            self.__normalizationParameters(self.__pathData)
+
+    def getDatasetSize(self, dataset="train"):
+        """
+        Method to obtain the train dataset size
+        train : String -> train, test
+        """
+        datasetJsonIndexPath = os.path.join(self.__pathData, self.__folderStructure[dataset]["jsonImagesIndex"])
+        datasetJson = JsonHandler.loadJson(datasetJsonIndexPath)
+
+        return len(datasetJson)
+
+    def getSample(self, index, dataset="train"):
+        """
+        Method to get a sample from a specific dataset and a specific index
+
+        index : int
+        dataset : String -> train, test
+
+        return tuple image, groundTruth
+        """
+        datasetJsonIndexPath = os.path.join(self.__pathData, self.__folderStructure[dataset]["jsonImagesIndex"])
+        datasetImages = JsonHandler.loadJson(datasetJsonIndexPath)
+
+        datasetGroundTruthPath = os.path.join(self.__pathData, self.__folderStructure[dataset]["jsonGroundTruth"])
+        datasetGroundTruth = JsonHandler.loadJson(datasetGroundTruthPath)
+
+        imagePath = datasetImages[str(index)]
+        groundTruth = datasetGroundTruth[str(index)]
+        return np.asarray(Image.open(imagePath)), groundTruth
+
+    def getRandomSample(self, dataset="train"):
+        """
+        Method used to obtain randomly a sample from the given dataset, the method creates a random list with the keys
+        and will iterate over that list, when the list is covered it will be shufled again
+
+        dataset : String -> train, test
+
+        return tuple image, groundTruth
+        """
+        index = self.__randomListIndex[dataset]
+        if (len(self.__randomList[dataset]) == 0 or index == self.getDatasetSize(dataset)):
+            index = 0
+            datasetJsonIndexPath = os.path.join(self.__pathData, self.__folderStructure[dataset]["jsonImagesIndex"])
+            datasetJson = JsonHandler.loadJson(datasetJsonIndexPath)
+            keys = list(datasetJson.keys())
+
+            random.shuffle(keys)
+
+            self.__randomList.update({
+                dataset : keys,
+            })
+
+        randomIndex = self.__randomList[dataset][index]
+        sample = self.getSample(randomIndex)
+            
+        self.__randomListIndex.update({
+            dataset : index + 1
+        })
+
+        return sample
 
