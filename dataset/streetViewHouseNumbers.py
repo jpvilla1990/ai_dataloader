@@ -241,8 +241,22 @@ class SVHN(object):
         min = 0
         max = 0
         countPixels = 0
+        minHeight = 0
+        maxHeight = 0
+        minWidth = 0
+        maxWidth = 0
+        firstSample = True
         for key in list(listImages.keys()):
             image = np.asarray(Image.open(listImages[key]))
+
+            if firstSample:
+                minWidth = image.shape[0]
+                minHeight = image.shape[1]
+                maxWidth = image.shape[0]
+                maxHeight = image.shape[1]
+                min = image.min()
+                max = image.max()
+                firstSample = False
 
             numberPixels = np.prod(image.shape)
             countPixels += numberPixels
@@ -253,10 +267,21 @@ class SVHN(object):
             imageMin = image.min()
             imageMax = image.max()
 
+            imageWidth = image.shape[0]
+            imageHeight = image.shape[1]
+
             if imageMin < min:
                 min = imageMin
             if imageMax > max:
                 max = imageMax
+            if imageWidth < minWidth:
+                minWidth = imageWidth
+            if imageWidth > maxWidth:
+                maxWidth = imageWidth
+            if imageHeight < minHeight:
+                minHeight = imageHeight
+            if imageHeight > maxHeight:
+                maxHeight = imageHeight
 
         average = sumPixels / countPixels
         deviation = (sumVariation / countPixels) ** (1/2)
@@ -266,6 +291,10 @@ class SVHN(object):
             "deviation" : float(deviation),
             "min" : float(min),
             "max" : float(max),
+            "minWidth" : float(minWidth),
+            "maxWidth" : float(maxWidth),
+            "minHeight" : float(minHeight),
+            "maxHeight" : float(maxHeight),
         }
 
         JsonHandler.saveJson(
