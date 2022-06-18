@@ -408,3 +408,15 @@ class SVHN(object):
 
         return sample
 
+    def getNormalizationParameters(self):
+        """
+        Method to obtain the normalization parameters
+
+        path : String
+
+        return json
+        """
+        return JsonHandler.loadJson(
+            os.path.join(self.__pathData, self.__folderStructure["train"]["jsonNormalizationParameters"]),
+        )
+
